@@ -1,0 +1,10 @@
+services:
+  api:
+    build: ./api
+    container_name: fastapi-app
+    environment:
+      PORT: 8000
+      NOAA_TOKEN: ${NOAA_TOKEN}
+    ports:
+      - '8000:8000'
+    restart: "no"
