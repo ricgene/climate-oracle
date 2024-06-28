@@ -1,31 +1,28 @@
 import os
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter, HTTPException
+
+from .routers import ct_router, noaa_router
+from .schemas import ct_schemas
+from .rest import ct_rest, noaa_rest
 
 app = FastAPI()
 
-@app.get("/climatetrace/search")
-def climatetrace(subsectors: str, countries: str):
-    url = "https://api.climatetrace.org/v4/assets"
-    params = {
-        "subsectors": subsectors,
-        "countries": countries,
-        "limit": 50
-    }
-    resp = requests.get(url=url, params=params)
-    json_resp = resp.json()
-    return json_resp
+router = APIRouter(
+    prefix="/main",
+    tags=["main"]
+)
 
+@router.post("/search")
+def search_assets(search_params: ct_schemas.SearchParams):
+    country_list = {c['name']: c['alpha3'] for c in ct_rest.get_countries()}
+    search_countries = []
+    for country in search_params.countries:
+        if country not in country_list:
+            raise HTTPException(status_code=404, detail=f"Country {country} not found.")
+        search_countries.append(country_list[country])
+    return ct_rest.get_assets(search_params.subsectors, search_countries)
 
-@app.get("/noaa/stations")
-def noaa_stations():
-    url = "https://www.ncei.noaa.gov/cdo-web/api/v2/stations"
-    params = {
-        "limit": 50
-    }
-    headers = {
-        "token": os.getenv("NOAA_TOKEN")
-    }
-    resp = requests.get(url=url, params=params, headers=headers)
-    json_resp = resp.json()
-    return json_resp
+app.include_router(router)
+app.include_router(ct_router.router)
+app.include_router(noaa_router.router)
